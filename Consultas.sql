@@ -114,3 +114,30 @@ WHERE usuario_id = 114 AND status_requisicao = 'NEGADO' OR status_requisicao = '
 -- Utilizamos um SELECT para visualizar as requisições na lixeira de um usuário
 SELECT * FROM public.lixeira WHERE usuario_id = 114;
 
+
+-- Consultas da Dashboard
+
+-- Solicitações Aceitas
+CREATE VIEW requisicao_aceita AS
+SELECT r.id, c.carga_horaria,
+  CASE WHEN r.status_requisicao = 'ACEITO' AND c.carga_horaria >= a.ch_maxima THEN a.ch_maxima ELSE c.carga_horaria END AS carga_contabilizada,
+  a.eixo
+FROM public.requisicao r
+INNER JOIN public.certificado c ON r.id = c.requisicao_id
+INNER JOIN public.atividade a ON c.atividade_id = a.id;
+
+-- Solicitações Rejeitadas
+CREATE VIEW requisicao_rejeitada AS
+SELECT id, observacao FROM public.requisicao WHERE status_requisicao = 'NEGADO' AND usuario_id = 100;
+
+-- Minhas Horas Por Eixo
+CREATE VIEW horas_por_eixo AS
+SELECT horas_ensino, horas_extensao, horas_gestao, horas_pesquisa FROM public.usuario WHERE id = 1;
+
+-- Status das Solicitações
+CREATE VIEW status_das_requisicoes AS
+SELECT
+SUM(CASE WHEN status_requisicao = 'ACEITO' THEN 1 ELSE 0 END) AS aceitas,
+SUM(CASE WHEN status_requisicao = 'NEGADO' THEN 1 ELSE 0 END) AS rejeitadas
+FROM public.requisicao
+WHERE usuario_id = 3;
