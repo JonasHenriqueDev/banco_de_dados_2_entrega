@@ -40,7 +40,6 @@ INSERT INTO public.requisicao(
 VALUES (1320, false, '2023-12-21', '2023-12-25', 1320, 'Observação teste rascunho', pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample.pdf'), 'RASCUNHO', 'CEwO^8Pjxk', 12, 3);
 
 --RF 019 - Deletar rascunhos de requisições
-
 -- Adicionar ON DELETE CASCADE na CONSTRAINT
 ALTER TABLE public.certificado DROP CONSTRAINT fk4let25y9w1sqkslmiqk40njxi;
 
@@ -50,14 +49,15 @@ ALTER TABLE public.certificado
   REFERENCES public.requisicao(id)
   ON DELETE CASCADE;
 
--- Realizar a querry
+-- Realizar a consulta
 SELECT * FROM public.requisicao WHERE status_requisicao = 'RASCUNHO';
 DELETE FROM public.requisicao
 WHERE status_requisicao = 'RASCUNHO' AND usuario_id = 3 AND id = 853;
 
 --RF 020 - Alterar rascunhos de requisições
--- Aqui nós fizemos outro INSERT, pois o registro havia sido apagado
-
+UPDATE public.requisicao
+SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample_2.pdf')
+WHERE id = 4 AND status_requisicao = 'RASCUNHO' AND usuario_id = 284; -- Subistitua o id pelo id da requisição que deseja alterar
 
 --RF 021 - Enviar solicitação à coordenação
 -- Aqui alteramos o status da requisição de 'RASCUNHO' para 'TRANSITO'
@@ -67,7 +67,9 @@ SET status_requisicao = 'TRANSITO'
 WHERE status_requisicao = 'RASCUNHO' AND usuario_id = 3 AND id = 1320;
 
 --RF 022
-
+UPDATE public.requisicao
+SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample_2.pdf')
+WHERE id = 4 AND (status_requisicao = 'RASCUNHO' OR status_requisicao = 'TRANSITO') AND usuario_id = 284; -- Subistitua o id pelo id da requisição que deseja alterar
 
 --RF 023 - Visualizar dados do discente
 -- Aqui criamos um View que contém o somatório de horas de um usuário específico
@@ -118,13 +120,26 @@ SELECT * FROM public.lixeira WHERE usuario_id = 114;
 -- Consultas da Dashboard
 
 -- Solicitações Aceitas
-CREATE VIEW requisicao_aceita AS
-SELECT r.id, c.carga_horaria,
-  CASE WHEN r.status_requisicao = 'ACEITO' AND c.carga_horaria >= a.ch_maxima THEN a.ch_maxima ELSE c.carga_horaria END AS carga_contabilizada,
-  a.eixo
-FROM public.requisicao r
-INNER JOIN public.certificado c ON r.id = c.requisicao_id
-INNER JOIN public.atividade a ON c.atividade_id = a.id;
+DROP VIEW IF EXISTS solicitacoes_aceitas;
+
+CREATE VIEW solicitacoes_aceitas AS
+SELECT
+    r.id AS id_requisicao,
+    SUM(c.carga_horaria) AS total_horas_registradas,
+    SUM(LEAST(c.carga_horaria, a.ch_maxima)) AS total_horas_computadas
+FROM
+    public.requisicao AS r
+INNER JOIN
+    public.certificado AS c ON r.id = c.requisicao_id
+INNER JOIN
+    public.atividade AS a ON c.atividade_id = a.id
+WHERE
+    r.status_requisicao = 'ACEITO'
+GROUP BY
+    r.id;
+
+SELECT * FROM solicitacoes_aceitas ORDER BY id_requisicao;
+SELECT * FROM solicitacoes_aceitas WHERE id_requisicao = 1238; --id para testes
 
 -- Solicitações Rejeitadas
 CREATE VIEW requisicao_rejeitada AS
@@ -141,3 +156,43 @@ SUM(CASE WHEN status_requisicao = 'ACEITO' THEN 1 ELSE 0 END) AS aceitas,
 SUM(CASE WHEN status_requisicao = 'NEGADO' THEN 1 ELSE 0 END) AS rejeitadas
 FROM public.requisicao
 WHERE usuario_id = 3;
+
+--Top solicitações
+DROP VIEW IF EXISTS top_solicitacoes;
+
+CREATE VIEW top_solicitacoes AS
+SELECT
+    id,
+    usuario_id,
+	data,
+    horas
+FROM (
+    SELECT
+        r.id,
+        r.usuario_id,
+		r.data_de_submissao AS data,
+        SUM(LEAST(c.carga_horaria, a.ch_maxima)) AS horas,
+        ROW_NUMBER() OVER (PARTITION BY r.usuario_id ORDER BY SUM(LEAST(c.carga_horaria, a.ch_maxima)) DESC) AS ranking
+    FROM
+        public.requisicao AS r
+    INNER JOIN
+        public.certificado AS c ON r.id = c.requisicao_id
+    INNER JOIN
+        public.atividade AS a ON c.atividade_id = a.id
+    WHERE
+        r.status_requisicao = 'ACEITO'
+    GROUP BY
+        r.id, r.usuario_id
+) ranked_solicitacoes_usuario;
+
+
+--Mostrar a view
+SELECT
+    id,
+    data,
+    horas
+FROM top_solicitacoes
+WHERE usuario_id = 211
+ORDER BY horas DESC
+LIMIT 5;
+
