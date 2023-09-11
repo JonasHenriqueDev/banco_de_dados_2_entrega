@@ -1,14 +1,18 @@
--- Database: projeto
+-- Database: projeto_acs
+
+--ALUNOS: Jonas Henrique, Pedro Mota, Mateus Valençca e Luis Gustavo
+
+--OBSERVAÇÃO: Dependendo de onde está o PDF é necessário mudar o diretório
 
 --Selects úteis
-SELECT * FROM public.requisicao WHERE usuario_id = 3;
-SELECT * FROM public.atividade;
-SELECT * FROM public.certificado;
+--SELECT * FROM public.requisicao WHERE usuario_id = 3;
+--SELECT * FROM public.atividade;
+--SELECT * FROM public.certificado;
 
 --RF 013 - Cadastrar Requisição
 INSERT INTO public.requisicao(
     id, arquivada, criacao, data_de_submissao, id_requisicao, observacao, requisicao_arquivo_assinada, status_requisicao, token, curso_id, usuario_id)
-VALUES (1301, false, '2023-12-21', '2023-12-25', 1301, 'Observação teste', pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample.pdf'), 'TRANSITO', 'CEwO^8Pjxk', 12, 3);
+VALUES (1301, false, '2023-12-21', '2023-12-25', 1301, 'Observação teste', pg_read_binary_file('C:\Dev\banco_de_dados_2_entrega\sample.pdf'), 'TRANSITO', 'CEwO^8Pjxk', 12, 3);
 
 
 --RF 014 - Consultar lista de requisições
@@ -37,7 +41,7 @@ SELECT horas_ensino, horas_extensao, horas_gestao, horas_pesquisa FROM public.us
 -- Aqui nós só colocamos o status da requisição como RASCUNHO
 INSERT INTO public.requisicao(
     id, arquivada, criacao, data_de_submissao, id_requisicao, observacao, requisicao_arquivo_assinada, status_requisicao, token, curso_id, usuario_id)
-VALUES (1320, false, '2023-12-21', '2023-12-25', 1320, 'Observação teste rascunho', pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample.pdf'), 'RASCUNHO', 'CEwO^8Pjxk', 12, 3);
+VALUES (1320, false, '2023-12-21', '2023-12-25', 1320, 'Observação teste rascunho', pg_read_binary_file('C:\Dev\banco_de_dados_2_entrega\sample_2.pdf'), 'RASCUNHO', 'CEwO^8Pjxk', 12, 3);
 
 --RF 019 - Deletar rascunhos de requisições
 -- Adicionar ON DELETE CASCADE na CONSTRAINT
@@ -56,7 +60,7 @@ WHERE status_requisicao = 'RASCUNHO' AND usuario_id = 3 AND id = 853;
 
 --RF 020 - Alterar rascunhos de requisições
 UPDATE public.requisicao
-SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample_2.pdf')
+SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Dev\banco_de_dados_2_entrega\sample_2.pdf')
 WHERE id = 4 AND status_requisicao = 'RASCUNHO' AND usuario_id = 284; -- Subistitua o id pelo id da requisição que deseja alterar
 
 --RF 021 - Enviar solicitação à coordenação
@@ -68,7 +72,7 @@ WHERE status_requisicao = 'RASCUNHO' AND usuario_id = 3 AND id = 1320;
 
 --RF 022
 UPDATE public.requisicao
-SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Users\Jonas\Desktop\projeto bd\sample_2.pdf')
+SET arquivada = true, observacao = 'alteração da observação', requisicao_arquivo_assinada = pg_read_binary_file('C:\Dev\banco_de_dados_2_entrega\sample_2.pdf')
 WHERE id = 4 AND (status_requisicao = 'RASCUNHO' OR status_requisicao = 'TRANSITO') AND usuario_id = 284; -- Subistitua o id pelo id da requisição que deseja alterar
 
 --RF 023 - Visualizar dados do discente
@@ -196,3 +200,21 @@ WHERE usuario_id = 211
 ORDER BY horas DESC
 LIMIT 5;
 
+-- Solicitações por ano
+DROP VIEW IF EXISTS solicitacoes_por_ano;
+
+CREATE VIEW solicitacoes_por_ano AS
+SELECT
+    r.usuario_id,
+    EXTRACT(YEAR FROM r.data_de_submissao) AS ano,
+    COUNT(*) AS quantidade_solicitacoes
+FROM
+    public.requisicao AS r
+GROUP BY
+    r.usuario_id,
+    EXTRACT(YEAR FROM r.data_de_submissao);
+
+--Visualizar a view
+SELECT ano, quantidade_solicitacoes
+FROM solicitacoes_por_ano 
+WHERE usuario_id = 211;
